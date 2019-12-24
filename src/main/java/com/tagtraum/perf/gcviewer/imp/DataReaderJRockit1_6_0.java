@@ -3,6 +3,11 @@ package com.tagtraum.perf.gcviewer.imp;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.Locale;
 import java.util.logging.Level;
 
 import com.tagtraum.perf.gcviewer.model.AbstractGCEvent;
@@ -159,6 +164,21 @@ public class DataReaderJRockit1_6_0 extends AbstractDataReader {
                 final int startPause = line.indexOf(PAUSE_MARKER, endTotal) + PAUSE_MARKER.length();
                 final int endPause = line.indexOf(' ', startPause);
                 event.setPause(NumberParser.parseDouble(line.substring(startPause, endPause)) / 1000.0d);
+                
+                // Set date-stamp if present
+                final int endDateStamp = line.indexOf(']', startLog);
+                final String datestampString = line.substring(startLog+1, endDateStamp);
+                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("EEE MMM ppd HH:mm:ss yyyy", Locale.US);
+                try {
+                	LocalDateTime datestampObj = LocalDateTime.from(dtf.parse(datestampString));
+                    ZoneId zoneId = ZoneId.systemDefault();
+                    event.setDateStamp(datestampObj.atZone(zoneId));
+                } catch (DateTimeParseException ex) {
+                    if (getLogger().isLoggable(Level.INFO)) {
+                    	getLogger().info("Cannot parse: " + datestampString);                               	
+                    }
+                }
+                
                 model.add(event);
 
                 // add artificial detail events
